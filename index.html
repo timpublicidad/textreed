@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conversor de Texto a Audio y Descarga</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      text-align: center;
+      padding: 20px;
+      background-color: #f4f4f4;
+    }
+    textarea {
+      width: 80%;
+      height: 100px;
+      margin-bottom: 20px;
+      font-size: 16px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <h1>Conversor de Texto a Audio y Descarga</h1>
+  <p>Escribe el texto que deseas convertir en audio y descárgalo:</p>
+  <textarea id="text-input" placeholder="Escribe tu texto aquí..."></textarea><br>
+  <button onclick="convertTextToAudio()">Convertir a Audio</button>
+  <button id="download-button" style="display:none;">Descargar Audio</button>
+
+  <script>
+    let audioChunks = [];
+    
+    function convertTextToAudio() {
+      const text = document.getElementById('text-input').value;
+      if (text.trim() === "") {
+        alert("Por favor, ingresa algún texto.");
+        return;
+      }
+
+      const speech = new SpeechSynthesisUtterance(text);
+      speech.lang = "es-ES"; 
+      speech.pitch = 1;
+      speech.rate = 1;
+
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const dest = audioContext.createMediaStreamDestination();
+      const mediaRecorder = new MediaRecorder(dest.stream);
+      const synth = window.speechSynthesis;
+
+      const utteranceSource = new Audio();
+      const source = audioContext.createMediaElementSource(utteranceSource);
+      source.connect(dest);
+
+      mediaRecorder.ondataavailable = function(event) {
+        audioChunks.push(event.data);
+      };
+
+      mediaRecorder.onstop = function() {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+        const url = URL.createObjectURL(audioBlob);
+        const downloadButton = document.getElementById('download-button');
+        downloadButton.style.display = 'inline-block';
+        downloadButton.onclick = () => {
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'audio.mp3';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        };
+        audioChunks = []; // Reiniciar los fragmentos de audio
+      };
+
+      speech.onstart = function() {
+        mediaRecorder.start();
+      };
+
+      speech.onend = function() {
+        mediaRecorder.stop();
+      };
+
+      synth.speak(speech);
+    }
+  </script>
+</body>
+</html>
