@@ -30,35 +30,100 @@
     button:hover {
       background-color: #0056b3;
     }
+    select {
+      padding: 10px;
+      margin-top: 10px;
+      font-size: 16px;
+    }
+    #progress-bar {
+      width: 80%;
+      height: 10px;
+      background-color: #ddd;
+      margin-top: 20px;
+    }
+    #progress {
+      height: 100%;
+      background-color: #4caf50;
+      width: 0;
+    }
+    #error-message {
+      color: red;
+      font-weight: bold;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
   <h1>Conversor de Texto a Audio y Descarga</h1>
-  <p>Escribe el texto que deseas convertir en audio y descárgalo:</p>
+  <p>Escribe el texto que deseas convertir en audio (máximo 500 palabras):</p>
   <textarea id="text-input" placeholder="Escribe tu texto aquí..."></textarea><br>
+  
+  <label for="voice-select">Selecciona una voz:</label>
+  <select id="voice-select"></select><br>
+
   <button onclick="convertTextToAudio()">Convertir a Audio</button>
   <button id="download-button" style="display:none;">Descargar Audio</button>
+  
+  <div id="error-message"></div>
+
+  <div id="progress-bar">
+    <div id="progress"></div>
+  </div>
 
   <script>
     let audioChunks = [];
+    const synth = window.speechSynthesis;
+    let voices = [];
+    const MAX_WORDS = 500; // Límite de palabras para convertir
+
+    // Función para cargar las voces disponibles
+    function loadVoices() {
+      voices = synth.getVoices();
+      const voiceSelect = document.getElementById('voice-select');
+      voices.forEach((voice, index) => {
+        const option = document.createElement('option');
+        option.textContent = voice.name;
+        option.value = index;
+        voiceSelect.appendChild(option);
+      });
+    }
     
+    // Cargar voces cuando estén disponibles
+    if (synth.onvoiceschanged !== undefined) {
+      synth.onvoiceschanged = loadVoices;
+    } else {
+      loadVoices();
+    }
+
+    // Función para convertir texto en audio
     function convertTextToAudio() {
       const text = document.getElementById('text-input').value;
+      const wordCount = text.trim().split(/\s+/).length; // Contar palabras
+
+      // Verificar que el texto no exceda el límite de palabras
+      if (wordCount > MAX_WORDS) {
+        document.getElementById('error-message').textContent = `El texto excede el límite de ${MAX_WORDS} palabras.`;
+        return;
+      } else {
+        document.getElementById('error-message').textContent = ''; // Limpiar mensaje de error
+      }
+
       if (text.trim() === "") {
         alert("Por favor, ingresa algún texto.");
         return;
       }
 
+      const selectedVoiceIndex = document.getElementById('voice-select').value;
+      const selectedVoice = voices[selectedVoiceIndex];
       const speech = new SpeechSynthesisUtterance(text);
-      speech.lang = "es-ES"; 
+      speech.lang = selectedVoice.lang;
+      speech.voice = selectedVoice;
       speech.pitch = 1;
       speech.rate = 1;
 
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const dest = audioContext.createMediaStreamDestination();
       const mediaRecorder = new MediaRecorder(dest.stream);
-      const synth = window.speechSynthesis;
-
       const utteranceSource = new Audio();
       const source = audioContext.createMediaElementSource(utteranceSource);
       source.connect(dest);
@@ -85,10 +150,17 @@
 
       speech.onstart = function() {
         mediaRecorder.start();
+        document.getElementById('progress').style.width = "0%";
       };
 
       speech.onend = function() {
         mediaRecorder.stop();
+      };
+
+      speech.onboundary = function(event) {
+        // Actualizar la barra de progreso en base al tiempo hablado
+        const percentage = (event.charIndex / text.length) * 100;
+        document.getElementById('progress').style.width = percentage + '%';
       };
 
       synth.speak(speech);
@@ -96,3 +168,4 @@
   </script>
 </body>
 </html>
+Actualización del index.html con límite de palabras y barra de progreso
