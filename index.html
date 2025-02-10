@@ -40,6 +40,10 @@
       font-weight: bold;
       margin-top: 10px;
     }
+    audio {
+      margin-top: 20px;
+      width: 80%;
+    }
   </style>
 </head>
 <body>
@@ -52,6 +56,8 @@
 
   <button onclick="convertTextToAudio()">Convertir a Audio</button>
   <button id="download-button" style="display:none;">Descargar Audio</button>
+  
+  <audio id="audio-player" controls style="display:none;"></audio>
   
   <div id="error-message"></div>
 
@@ -105,4 +111,35 @@
       const chunks = [];
 
       mediaRecorder.ondataavailable = (event) => chunks.push(event.data);
-      media
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/wav' });
+        const url = URL.createObjectURL(blob);
+
+        const audioPlayer = document.getElementById('audio-player');
+        audioPlayer.src = url;
+        audioPlayer.style.display = 'block';
+        
+        document.getElementById('download-button').style.display = 'inline-block';
+        document.getElementById('download-button').onclick = () => {
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'audio.wav';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        };
+      };
+
+      utterance.onstart = () => {
+        mediaRecorder.start();
+      };
+
+      utterance.onend = () => {
+        mediaRecorder.stop();
+      };
+
+      synth.speak(utterance);
+    }
+  </script>
+</body>
+</html>
