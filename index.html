@@ -35,17 +35,6 @@
       margin-top: 10px;
       font-size: 16px;
     }
-    #progress-bar {
-      width: 80%;
-      height: 10px;
-      background-color: #ddd;
-      margin-top: 20px;
-    }
-    #progress {
-      height: 100%;
-      background-color: #4caf50;
-      width: 0;
-    }
     #error-message {
       color: red;
       font-weight: bold;
@@ -62,23 +51,14 @@
   <select id="voice-select"></select><br>
 
   <button onclick="convertTextToAudio()">Convertir a Audio</button>
-  <button id="play-button" style="display:none;" onclick="playAudio()">Reproducir</button>
-  <button id="pause-button" style="display:none;" onclick="pauseAudio()">Pausar</button>
-  <button id="skip-button" style="display:none;" onclick="skipAudio(5)">Adelantar 5s</button>
   <button id="download-button" style="display:none;">Descargar Audio</button>
   
   <div id="error-message"></div>
-
-  <div id="progress-bar">
-    <div id="progress"></div>
-  </div>
 
   <script>
     let synth = window.speechSynthesis;
     let voices = [];
     const MAX_WORDS = 500;
-    let audioBlob = null;
-    let audioPlayer = null;
 
     function loadVoices() {
       voices = synth.getVoices();
@@ -114,65 +94,15 @@
 
       const selectedVoiceIndex = document.getElementById('voice-select').value;
       const selectedVoice = voices[selectedVoiceIndex];
-      
-      const speech = new SpeechSynthesisUtterance(text);
-      speech.voice = selectedVoice;
-      speech.lang = selectedVoice.lang;
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.voice = selectedVoice;
+      utterance.lang = selectedVoice.lang;
 
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const dest = audioContext.createMediaStreamDestination();
       const mediaRecorder = new MediaRecorder(dest.stream);
-
       const chunks = [];
-      mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
-      mediaRecorder.onstop = () => {
-        audioBlob = new Blob(chunks, { type: 'audio/wav' });
-        const url = URL.createObjectURL(audioBlob);
-        document.getElementById('play-button').style.display = 'inline-block';
-        document.getElementById('pause-button').style.display = 'inline-block';
-        document.getElementById('skip-button').style.display = 'inline-block';
-        document.getElementById('download-button').style.display = 'inline-block';
 
-        document.getElementById('download-button').onclick = () => {
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'audio.wav';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-        };
-
-        audioPlayer = new Audio(url);
-      };
-
-      const source = audioContext.createMediaElementSource(new Audio());
-      source.connect(dest);
-      mediaRecorder.start();
-
-      speech.onend = () => {
-        mediaRecorder.stop();
-      };
-
-      synth.speak(speech);
-    }
-
-    function playAudio() {
-      if (audioPlayer) {
-        audioPlayer.play();
-      }
-    }
-
-    function pauseAudio() {
-      if (audioPlayer) {
-        audioPlayer.pause();
-      }
-    }
-
-    function skipAudio(seconds) {
-      if (audioPlayer) {
-        audioPlayer.currentTime += seconds;
-      }
-    }
-  </script>
-</body>
-</html>
+      mediaRecorder.ondataavailable = (event) => chunks.push(event.data);
+      media
