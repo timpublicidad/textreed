@@ -62,6 +62,9 @@
   <select id="voice-select"></select><br>
 
   <button onclick="convertTextToAudio()">Convertir a Audio</button>
+  <button id="play-button" style="display:none;" onclick="playAudio()">Reproducir</button>
+  <button id="pause-button" style="display:none;" onclick="pauseAudio()">Pausar</button>
+  <button id="skip-button" style="display:none;" onclick="skipAudio(5)">Adelantar 5s</button>
   <button id="download-button" style="display:none;">Descargar Audio</button>
   
   <div id="error-message"></div>
@@ -71,101 +74,105 @@
   </div>
 
   <script>
-    let audioChunks = [];
-    const synth = window.speechSynthesis;
+    let synth = window.speechSynthesis;
     let voices = [];
-    const MAX_WORDS = 500; // Límite de palabras para convertir
+    const MAX_WORDS = 500;
+    let audioBlob = null;
+    let audioPlayer = null;
 
-    // Función para cargar las voces disponibles
     function loadVoices() {
       voices = synth.getVoices();
       const voiceSelect = document.getElementById('voice-select');
+      voiceSelect.innerHTML = '';
       voices.forEach((voice, index) => {
         const option = document.createElement('option');
-        option.textContent = voice.name;
+        option.textContent = `${voice.name} (${voice.lang})`;
         option.value = index;
         voiceSelect.appendChild(option);
       });
     }
-    
-    // Cargar voces cuando estén disponibles
+
     if (synth.onvoiceschanged !== undefined) {
       synth.onvoiceschanged = loadVoices;
-    } else {
-      loadVoices();
     }
 
-    // Función para convertir texto en audio
-    function convertTextToAudio() {
+    async function convertTextToAudio() {
       const text = document.getElementById('text-input').value;
-      const wordCount = text.trim().split(/\s+/).length; // Contar palabras
+      const wordCount = text.trim().split(/\s+/).length;
 
-      // Verificar que el texto no exceda el límite de palabras
       if (wordCount > MAX_WORDS) {
         document.getElementById('error-message').textContent = `El texto excede el límite de ${MAX_WORDS} palabras.`;
         return;
       } else {
-        document.getElementById('error-message').textContent = ''; // Limpiar mensaje de error
+        document.getElementById('error-message').textContent = '';
       }
 
-      if (text.trim() === "") {
+      if (!text.trim()) {
         alert("Por favor, ingresa algún texto.");
         return;
       }
 
       const selectedVoiceIndex = document.getElementById('voice-select').value;
       const selectedVoice = voices[selectedVoiceIndex];
+      
       const speech = new SpeechSynthesisUtterance(text);
-      speech.lang = selectedVoice.lang;
       speech.voice = selectedVoice;
-      speech.pitch = 1;
-      speech.rate = 1;
+      speech.lang = selectedVoice.lang;
 
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const dest = audioContext.createMediaStreamDestination();
       const mediaRecorder = new MediaRecorder(dest.stream);
-      const utteranceSource = new Audio();
-      const source = audioContext.createMediaElementSource(utteranceSource);
-      source.connect(dest);
 
-      mediaRecorder.ondataavailable = function(event) {
-        audioChunks.push(event.data);
-      };
-
-      mediaRecorder.onstop = function() {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+      const chunks = [];
+      mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+      mediaRecorder.onstop = () => {
+        audioBlob = new Blob(chunks, { type: 'audio/wav' });
         const url = URL.createObjectURL(audioBlob);
-        const downloadButton = document.getElementById('download-button');
-        downloadButton.style.display = 'inline-block';
-        downloadButton.onclick = () => {
+        document.getElementById('play-button').style.display = 'inline-block';
+        document.getElementById('pause-button').style.display = 'inline-block';
+        document.getElementById('skip-button').style.display = 'inline-block';
+        document.getElementById('download-button').style.display = 'inline-block';
+
+        document.getElementById('download-button').onclick = () => {
           const a = document.createElement('a');
           a.href = url;
-          a.download = 'audio.mp3';
+          a.download = 'audio.wav';
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
         };
-        audioChunks = []; // Reiniciar los fragmentos de audio
+
+        audioPlayer = new Audio(url);
       };
 
-      speech.onstart = function() {
-        mediaRecorder.start();
-        document.getElementById('progress').style.width = "0%";
-      };
+      const source = audioContext.createMediaElementSource(new Audio());
+      source.connect(dest);
+      mediaRecorder.start();
 
-      speech.onend = function() {
+      speech.onend = () => {
         mediaRecorder.stop();
-      };
-
-      speech.onboundary = function(event) {
-        // Actualizar la barra de progreso en base al tiempo hablado
-        const percentage = (event.charIndex / text.length) * 100;
-        document.getElementById('progress').style.width = percentage + '%';
       };
 
       synth.speak(speech);
     }
+
+    function playAudio() {
+      if (audioPlayer) {
+        audioPlayer.play();
+      }
+    }
+
+    function pauseAudio() {
+      if (audioPlayer) {
+        audioPlayer.pause();
+      }
+    }
+
+    function skipAudio(seconds) {
+      if (audioPlayer) {
+        audioPlayer.currentTime += seconds;
+      }
+    }
   </script>
 </body>
 </html>
-Actualización del index.html con límite de palabras y barra de progreso
